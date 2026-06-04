@@ -4,7 +4,7 @@
 // 版本号定义
 #define VERSION_MAJOR 0
 #define VERSION_MINOR 0
-#define VERSION_PATCH 2
+#define VERSION_PATCH 3
 
 // 构建完整的版本字符串
 #define STRINGIFY(x) #x

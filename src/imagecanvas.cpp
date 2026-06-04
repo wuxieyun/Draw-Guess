@@ -11,6 +11,7 @@
 #include <QFileInfo>
 #include <QThread>
 #include <QTimer>
+#include <QImageReader>
 
 #ifdef _WIN32
 #include <windows.h>
@@ -21,12 +22,21 @@ ImageCanvas::ImageCanvas(QWidget *parent)
       currentState(CanvasState::Idle),
       drawTimer(new QTimer(this)),
       currentPointIndex(0),
-      drawSpeed(10),
+      drawSpeed(8),
       imageLoaded(false),
-      skipPoints(2)  // 每隔2个点画一个，提高效率
+      skipPoints(3)  // 进一步提高效率
 {
     setFocusPolicy(Qt::StrongFocus);
+    setFocus();
     connect(drawTimer, &QTimer::timeout, this, &ImageCanvas::drawNextPoint);
+    
+    // 确保窗口能接收全局按键事件
+    grabKeyboard();
+}
+
+ImageCanvas::~ImageCanvas()
+{
+    releaseKeyboard();
 }
 
 void ImageCanvas::loadImage(const QString &path)
@@ -40,7 +50,15 @@ void ImageCanvas::loadImage(const QString &path)
         return;
     }
     
+    // 使用 QImageReader 尝试多种格式加载
     originalImage.load(path);
+    if (originalImage.isNull()) {
+        // 尝试其他加载方式
+        QImageReader reader(path);
+        reader.setAutoDetectImageFormat(true);
+        originalImage = reader.read();
+    }
+    
     if (!originalImage.isNull()) {
         imageLoaded = true;
         processImage();
@@ -91,9 +109,10 @@ void ImageCanvas::startDrawing()
         currentPointIndex = 0;
         currentState = CanvasState::Drawing;
         
-        // 确保窗口保持焦点
+        // 确保窗口能接收事件
         setFocus();
         activateWindow();
+        raise();
         
         drawTimer->start(1000 / drawSpeed);
         emit statusUpdated(QString("开始绘画，共 %1 个点，按ESC停止，+加速，-减速").arg(drawingPoints.size()));
@@ -107,13 +126,23 @@ void ImageCanvas::startDrawing()
 void ImageCanvas::stopDrawing()
 {
     drawTimer->stop();
+    
+    // 确保释放鼠标按钮
+#ifdef _WIN32
+    INPUT input = {0};
+    input.type = INPUT_MOUSE;
+    input.mi.dwFlags = MOUSEEVENTF_LEFTUP;
+    SendInput(1, &input, sizeof(INPUT));
+#endif
+    
     currentState = CanvasState::Idle;
     emit statusUpdated("绘画已停止");
+    qDebug() << "绘画已停止";
 }
 
 void ImageCanvas::setDrawSpeed(int speed)
 {
-    drawSpeed = qBound(1, speed, 50);  // 降低最高速度，更稳定
+    drawSpeed = qBound(1, speed, 30);  // 进一步降低最高速度，更稳定
     if (drawTimer->isActive()) {
         drawTimer->setInterval(1000 / drawSpeed);
     }
@@ -199,21 +228,23 @@ void ImageCanvas::paintEvent(QPaintEvent *event)
 
 void ImageCanvas::keyPressEvent(QKeyEvent *event)
 {
-    // 绘画时保持窗口活跃
-    if (currentState == CanvasState::Drawing) {
-        activateWindow();
-        setFocus();
-    }
+    qDebug() << "Key pressed:" << event->key();
     
+    // 检查 ESC 键，无论状态如何都尝试停止
     if (event->key() == Qt::Key_Escape) {
+        qDebug() << "ESC pressed, stopping...";
         if (currentState == CanvasState::Drawing) {
             stopDrawing();
         }
+        return;
     } else if (event->key() == Qt::Key_Plus || event->key() == Qt::Key_Equal) {
-        setDrawSpeed(drawSpeed + 5);
+        setDrawSpeed(drawSpeed + 3);
+        return;
     } else if (event->key() == Qt::Key_Minus) {
-        setDrawSpeed(drawSpeed - 5);
+        setDrawSpeed(drawSpeed - 3);
+        return;
     }
+    
     QWidget::keyPressEvent(event);
 }
 
@@ -222,12 +253,12 @@ void ImageCanvas::drawNextPoint()
     if (currentPointIndex < drawingPoints.size()) {
         QPoint point = drawingPoints[currentPointIndex];
         
-        // 移动鼠标并点击
-        simulateMouseClick(point);
+        // 移动鼠标并拖拽
+        simulateMouseDrag(point);
         
         currentPointIndex++;
         
-        if (currentPointIndex % 100 == 0) {
+        if (currentPointIndex % 50 == 0) {
             emit statusUpdated(QString("绘画进度: %1/%2").arg(currentPointIndex).arg(drawingPoints.size()));
         }
         
@@ -239,10 +270,13 @@ void ImageCanvas::drawNextPoint()
     }
 }
 
-void ImageCanvas::simulateMouseClick(const QPoint &point)
+void ImageCanvas::simulateMouseDrag(const QPoint &point)
 {
 #ifdef _WIN32
-    // Windows 平台：使用 SendInput 模拟真实的鼠标点击
+    // Windows 平台：使用 SendInput 模拟拖拽绘画
+    static bool isMouseDown = false;
+    static QPoint lastPoint;
+    
     INPUT input = {0};
     input.type = INPUT_MOUSE;
     
@@ -252,16 +286,36 @@ void ImageCanvas::simulateMouseClick(const QPoint &point)
     input.mi.dwFlags = MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE;
     SendInput(1, &input, sizeof(INPUT));
     
-    // 按下鼠标左键
-    input.mi.dwFlags = MOUSEEVENTF_LEFTDOWN;
-    SendInput(1, &input, sizeof(INPUT));
+    // 如果还没按下鼠标，先按下
+    if (!isMouseDown) {
+        input.mi.dwFlags = MOUSEEVENTF_LEFTDOWN;
+        SendInput(1, &input, sizeof(INPUT));
+        isMouseDown = true;
+        QThread::msleep(5);
+    }
     
     // 短暂延迟
-    QThread::msleep(2);
+    QThread::msleep(3);
     
-    // 释放鼠标左键
-    input.mi.dwFlags = MOUSEEVENTF_LEFTUP;
-    SendInput(1, &input, sizeof(INPUT));
+    // 检查是否是行的结尾或需要抬起
+    // 如果 Y 坐标变化较大，说明换行了，需要短暂抬起
+    if (!lastPoint.isNull() && abs(point.y() - lastPoint.y()) > 2) {
+        // 短暂释放鼠标再按下，模拟换行
+        input.mi.dwFlags = MOUSEEVENTF_LEFTUP;
+        SendInput(1, &input, sizeof(INPUT));
+        QThread::msleep(3);
+        input.mi.dwFlags = MOUSEEVENTF_LEFTDOWN;
+        SendInput(1, &input, sizeof(INPUT));
+    }
+    
+    lastPoint = point;
+    
+    // 在绘画结束时确保释放鼠标
+    if (currentPointIndex >= drawingPoints.size() - 1) {
+        input.mi.dwFlags = MOUSEEVENTF_LEFTUP;
+        SendInput(1, &input, sizeof(INPUT));
+        isMouseDown = false;
+    }
 #else
     // 非 Windows 平台：只移动鼠标
     QCursor::setPos(point);
@@ -274,8 +328,17 @@ void ImageCanvas::processImage()
 {
     if (originalImage.isNull()) return;
     
+    // 确保是 RGB 格式
+    QImage rgbImage;
+    if (originalImage.format() != QImage::Format_RGB32 && 
+        originalImage.format() != QImage::Format_ARGB32) {
+        rgbImage = originalImage.convertToFormat(QImage::Format_RGB32);
+    } else {
+        rgbImage = originalImage;
+    }
+    
     // 转换为灰度图
-    QImage grayImage = originalImage.convertToFormat(QImage::Format_Grayscale8);
+    QImage grayImage = rgbImage.convertToFormat(QImage::Format_Grayscale8);
     
     // 二值化处理
     processedImage = QImage(grayImage.size(), QImage::Format_Mono);
@@ -283,7 +346,7 @@ void ImageCanvas::processImage()
     processedImage.setColor(0, qRgb(255, 255, 255));
     processedImage.setColor(1, qRgb(0, 0, 0));
     
-    int threshold = 128;
+    int threshold = 150;  // 提高阈值，获得更清晰的线条
     
     for (int y = 0; y < grayImage.height(); y++) {
         for (int x = 0; x < grayImage.width(); x++) {
@@ -291,6 +354,8 @@ void ImageCanvas::processImage()
             processedImage.setPixel(x, y, gray < threshold ? 1 : 0);
         }
     }
+    
+    qDebug() << "图片处理完成";
 }
 
 void ImageCanvas::generateDrawingPoints()
@@ -306,16 +371,24 @@ void ImageCanvas::generateDrawingPoints()
     int offsetX = (selectedCanvas.width() - scaledImage.width()) / 2;
     int offsetY = (selectedCanvas.height() - scaledImage.height()) / 2;
     
-    // 收集黑色像素点，使用跳跃采样提高效率
     qDebug() << "开始收集绘画点，画布大小:" << selectedCanvas << "图片缩放后大小:" << scaledImage.size();
     
-    for (int y = 0; y < scaledImage.height(); y += (skipPoints + 1)) {
-        for (int x = 0; x < scaledImage.width(); x += (skipPoints + 1)) {
+    // 扫描线方式收集点，按行和列的顺序
+    for (int y = 0; y < scaledImage.height(); y++) {
+        QList<QPoint> linePoints;
+        
+        for (int x = 0; x < scaledImage.width(); x++) {
             if (qGray(scaledImage.pixel(x, y)) < 128) {
-                QPoint globalPoint(selectedCanvas.x() + x + offsetX, 
-                                  selectedCanvas.y() + y + offsetY);
-                drawingPoints.append(globalPoint);
+                linePoints.append(QPoint(x, y));
             }
+        }
+        
+        // 对每一行的点进行下采样，减少数量
+        for (int i = 0; i < linePoints.size(); i += (skipPoints + 1)) {
+            QPoint p = linePoints[i];
+            QPoint globalPoint(selectedCanvas.x() + p.x() + offsetX, 
+                              selectedCanvas.y() + p.y() + offsetY);
+            drawingPoints.append(globalPoint);
         }
     }
     

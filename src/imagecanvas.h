@@ -20,6 +20,7 @@ class ImageCanvas : public QWidget
 
 public:
     explicit ImageCanvas(QWidget *parent = nullptr);
+    ~ImageCanvas();
     void loadImage(const QString &path);
     void startScreenSelection();
     void startDrawing();
@@ -46,7 +47,7 @@ private slots:
 private:
     void processImage();
     void generateDrawingPoints();
-    void simulateMouseClick(const QPoint &point);
+    void simulateMouseDrag(const QPoint &point);
 
     QImage originalImage;
     QImage processedImage;
