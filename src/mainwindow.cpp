@@ -35,7 +35,7 @@ void MainWindow::selectImage()
         this, 
         "选择图片", 
         "", 
-        "图片文件 (*.png *.jpg *.jpeg *.bmp *.gif *.tiff);;所有文件 (*.*)"
+        "图片文件 (*.png *.jpg *.jpeg *.jpge *.bmp *.gif *.tiff *.webp);;所有文件 (*.*)"
     );
     if (!fileName.isEmpty()) {
         canvas->loadImage(fileName);

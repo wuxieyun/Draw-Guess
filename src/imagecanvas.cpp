@@ -50,13 +50,17 @@ void ImageCanvas::loadImage(const QString &path)
         return;
     }
     
-    // 使用 QImageReader 尝试多种格式加载
-    originalImage.load(path);
+    // 先尝试用 QImageReader 加载，提供更好的格式支持和错误信息
+    QImageReader reader(path);
+    reader.setAutoDetectImageFormat(true);
+    
+    // 尝试读取
+    originalImage = reader.read();
     if (originalImage.isNull()) {
-        // 尝试其他加载方式
-        QImageReader reader(path);
-        reader.setAutoDetectImageFormat(true);
-        originalImage = reader.read();
+        qDebug() << "QImageReader 读取失败，错误:" << reader.errorString() << "支持格式:" << QImageReader::supportedImageFormats();
+        
+        // 如果 QImageReader 失败，尝试直接用 QImage::load
+        originalImage.load(path);
     }
     
     if (!originalImage.isNull()) {
@@ -64,10 +68,11 @@ void ImageCanvas::loadImage(const QString &path)
         processImage();
         update();
         emit statusUpdated(QString("图片已加载并解析 (%1x%2)").arg(originalImage.width()).arg(originalImage.height()));
-        qDebug() << "图片加载成功，尺寸:" << originalImage.size();
+        qDebug() << "图片加载成功，尺寸:" << originalImage.size() << "格式:" << originalImage.format();
     } else {
-        qDebug() << "图片加载失败！";
-        emit statusUpdated("错误：图片加载失败，请检查文件格式！");
+        QString error = QString("错误：图片加载失败，支持格式: %1").arg(QString::fromUtf8(QImageReader::supportedImageFormats().join(", ")));
+        qDebug() << error;
+        emit statusUpdated(error);
     }
 }
 

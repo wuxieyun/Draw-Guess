@@ -12,6 +12,8 @@ ScreenSelector::ScreenSelector(QWidget *parent)
     setWindowFlags(Qt::FramelessWindowHint | Qt::WindowStaysOnTopHint | Qt::Tool);
     setAttribute(Qt::WA_TranslucentBackground);
     setMouseTracking(true);
+    setFocusPolicy(Qt::StrongFocus);  // 确保能获取焦点
+    setFocus();  // 立即获取焦点
     
     // 全屏显示
     QScreen *screen = QGuiApplication::primaryScreen();
