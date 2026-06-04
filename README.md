@@ -19,11 +19,9 @@
 
 ## 构建步骤
 
-详见 [BUILD.md](file:///workspace/BUILD.md)
+详见 [BUILD.md](file:///workspace/BUILD.md) 中包含详细的多平台构建指南。
 
-### 中包含详细的多平台构建指南。
-
-### 快速开始
+### 快速开始 (Linux)
 
 ```bash
 # 克隆项目
@@ -41,6 +39,38 @@ make
 
 # 运行
 ./DrawingHelper
+```
+
+## 获取 Windows 可执行文件
+
+### 方式一：使用 GitHub Actions 自动构建（推荐）
+
+项目已配置 GitHub Actions 工作流程，每次推送到 `main` 分支时都会自动构建 Windows 可执行文件。
+
+1. 访问项目的 GitHub Actions 页面
+2. 选择最新的构建工作流
+3. 在「Artifacts」部分下载 `DrawingHelper-Windows` 压缩包
+4. 解压后直接运行 `DrawingHelper.exe`
+
+### 方式二：在 Windows 上本地构建
+
+1. 安装 Qt6（推荐使用 Qt 官方安装器）
+2. 安装 CMake 和 Visual Studio 2019 或更高版本
+3. 克隆项目
+4. 使用 CMake 配置并构建项目：
+
+```bash
+mkdir build
+cd build
+cmake ..
+cmake --build . --config Release
+```
+
+5. 运行 `windeployqt` 部署依赖库：
+
+```bash
+cd Release
+windeployqt DrawingHelper.exe
 ```
 
 ## 使用说明

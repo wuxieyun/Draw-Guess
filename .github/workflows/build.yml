@@ -1,0 +1,41 @@
+name: Build Windows Executable
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install Qt
+      uses: jurplel/install-qt-action@v4
+      with:
+        version: '6.6.0'
+        host: 'windows'
+        target: 'desktop'
+        arch: 'win64_msvc2019_64'
+        install-deps: 'true'
+        
+    - name: Configure CMake
+      run: cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=Release
+      
+    - name: Build
+      run: cmake --build ${{github.workspace}}/build --config Release
+      
+    - name: Deploy Qt Libraries
+      run: |
+        cd ${{github.workspace}}/build/Release
+        windeployqt DrawingHelper.exe --release --no-translations
+        
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: DrawingHelper-Windows
+        path: ${{github.workspace}}/build/Release/
