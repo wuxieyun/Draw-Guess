@@ -122,6 +122,33 @@ windeployqt DrawingHelper.exe
 
 本项目采用 [GNU General Public License v3.0](file:///workspace/LICENSE) 许可证。
 
+## 版本管理
+
+本项目使用自动版本号管理，当前版本：v0.0.1
+
+### 增加版本号
+
+在项目根目录下使用 Python 脚本来增加版本号：
+
+```bash
+# 增加 patch 版本号（v0.0.1 -> v0.0.2）
+python3 bump_version.py patch
+
+# 增加 minor 版本号（v0.0.1 -> v0.1.0）
+python3 bump_version.py minor
+
+# 增加 major 版本号（v0.0.1 -> v1.0.0）
+python3 bump_version.py major
+```
+
+脚本会自动更新：
+- [version.h](file:///workspace/src/version.h) - 代码中的版本号定义
+- [CMakeLists.txt](file:///workspace/CMakeLists.txt) - CMake 项目版本
+
+版本号会在以下位置显示：
+- 软件窗口标题栏
+- 关于对话框
+
 ## 版权信息
 
 版权所有 © 无忧。所有

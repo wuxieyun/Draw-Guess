@@ -1,4 +1,5 @@
 #include "mainwindow.h"
+#include "version.h"
 #include <QMenuBar>
 #include <QToolBar>
 #include <QStatusBar>
@@ -9,7 +10,7 @@
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
 {
-    setWindowTitle("你画我猜绘画辅助工具 v0.1");
+    setWindowTitle(QString("你画我猜绘画辅助工具 %1").arg(VERSION_STRING));
     resize(1000, 700);
     
     canvas = new ImageCanvas(this);
@@ -69,16 +70,16 @@ void MainWindow::decreaseSpeed()
 void MainWindow::showAbout()
 {
     QMessageBox::about(this, "关于",
-        "<h3>你画我猜绘画辅助工具</h3>"
-        "<p>版本：0.1</p>"
+        QString("<h3>你画我猜绘画辅助工具</h3>"
+        "<p>版本：%1</p>"
         "<p>功能说明：</p>"
         "<ul>"
         "<li><b>选择图片</b>：加载要绘制的图片</li>"
-        "<li><b>选择画板</b>：在屏幕上框选绘画区域</li>"
+        "<li><b>选择画板</b>：在屏幕上选择绘画区域</li>"
         "<li><b>开始绘画</b>：在选定区域自动绘制图片</li>"
         "<li><b>快捷键</b>：ESC停止，+加速，-减速</li>"
         "</ul>"
-        "<p>提示：绘画前请确保目标窗口可见且已准备好。</p>");
+        "<p>提示：绘画前请确保目标窗口可见且已准备好。</p>").arg(VERSION_STRING));
 }
 
 void MainWindow::updateStatus(const QString &message)

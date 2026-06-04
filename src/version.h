@@ -1,0 +1,14 @@
+#ifndef VERSION_H
+#define VERSION_H
+
+// 版本号定义
+#define VERSION_MAJOR 0
+#define VERSION_MINOR 0
+#define VERSION_PATCH 1
+
+// 构建完整的版本字符串
+#define STRINGIFY(x) #x
+#define TOSTRING(x) STRINGIFY(x)
+#define VERSION_STRING "v" TOSTRING(VERSION_MAJOR) "." TOSTRING(VERSION_MINOR) "." TOSTRING(VERSION_PATCH)
+
+#endif // VERSION_H
