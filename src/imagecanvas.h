@@ -57,6 +57,7 @@ private:
     int currentPointIndex;
     int drawSpeed;
     bool imageLoaded;
+    int skipPoints;  // 跳跃采样点数
 };
 
 #endif // IMAGECANVAS_H
