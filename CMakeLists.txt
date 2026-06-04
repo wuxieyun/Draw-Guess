@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 
-project(DrawingHelper VERSION 0.0.1 LANGUAGES CXX)
+project(DrawingHelper VERSION 0.1.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -14,11 +14,13 @@ set(PROJECT_SOURCES
     src/main.cpp
     src/mainwindow.cpp
     src/imagecanvas.cpp
+    src/screenselector.cpp
 )
 
 set(PROJECT_HEADERS
     src/mainwindow.h
     src/imagecanvas.h
+    src/screenselector.h
 )
 
 add_executable(DrawingHelper

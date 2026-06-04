@@ -11,7 +11,6 @@
 
 enum class CanvasState {
     Idle,
-    SelectingCanvas,
     Drawing
 };
 
@@ -22,8 +21,7 @@ class ImageCanvas : public QWidget
 public:
     explicit ImageCanvas(QWidget *parent = nullptr);
     void loadImage(const QString &path);
-    void startCanvasSelection();
-    void stopCanvasSelection();
+    void startScreenSelection();
     void startDrawing();
     void stopDrawing();
     void setDrawSpeed(int speed);
@@ -33,9 +31,6 @@ public:
 
 protected:
     void paintEvent(QPaintEvent *event) override;
-    void mousePressEvent(QMouseEvent *event) override;
-    void mouseMoveEvent(QMouseEvent *event) override;
-    void mouseReleaseEvent(QMouseEvent *event) override;
     void keyPressEvent(QKeyEvent *event) override;
 
 signals:
@@ -45,22 +40,23 @@ signals:
 
 private slots:
     void drawNextPoint();
+    void onScreenSelectionConfirmed(const QRect &rect);
+    void onScreenSelectionCancelled();
 
 private:
     void processImage();
     void generateDrawingPoints();
+    void simulateMouseClick(const QPoint &point);
 
     QImage originalImage;
     QImage processedImage;
-    QPixmap canvasPixmap;
-    QPoint selectionStart;
-    QPoint selectionEnd;
     QRect selectedCanvas;
     CanvasState currentState;
     QTimer *drawTimer;
     QList<QPoint> drawingPoints;
     int currentPointIndex;
     int drawSpeed;
+    bool imageLoaded;
 };
 
-#endif
+#endif // IMAGECANVAS_H

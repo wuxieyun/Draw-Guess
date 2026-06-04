@@ -9,7 +9,8 @@
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
 {
-    setWindowTitle("你画我猜绘画辅助工具 v0.0.1");
+    setWindowTitle("你画我猜绘画辅助工具 v0.1");
+    resize(1000, 700);
     
     canvas = new ImageCanvas(this);
     setCentralWidget(canvas);
@@ -18,7 +19,7 @@ MainWindow::MainWindow(QWidget *parent)
     createMenus();
     createToolBar();
     
-    statusBar()->showMessage("欢迎使用你画我猜绘画辅助工具 v0.0.1");
+    statusBar()->showMessage("欢迎使用你画我猜绘画辅助工具！请先选择图片和画板区域。");
     
     connect(canvas, &ImageCanvas::statusUpdated, this, &MainWindow::updateStatus);
 }
@@ -29,7 +30,12 @@ MainWindow::~MainWindow()
 
 void MainWindow::selectImage()
 {
-    QString fileName = QFileDialog::getOpenFileName(this, "选择图片", "", "图片文件 (*.png *.jpg *.jpeg *.bmp *.gif)");
+    QString fileName = QFileDialog::getOpenFileName(
+        this, 
+        "选择图片", 
+        "", 
+        "图片文件 (*.png *.jpg *.jpeg *.bmp *.gif *.tiff);;所有文件 (*.*)"
+    );
     if (!fileName.isEmpty()) {
         canvas->loadImage(fileName);
     }
@@ -37,7 +43,7 @@ void MainWindow::selectImage()
 
 void MainWindow::selectCanvas()
 {
-    canvas->startCanvasSelection();
+    canvas->startScreenSelection();
 }
 
 void MainWindow::startDrawing()
@@ -62,20 +68,17 @@ void MainWindow::decreaseSpeed()
 
 void MainWindow::showAbout()
 {
-    QMessageBox::about(this, "关于", 
+    QMessageBox::about(this, "关于",
         "<h3>你画我猜绘画辅助工具</h3>"
-        "<p>版本：v0.0.1</p>"
-        "<p>版权：无忧。所有</p>"
+        "<p>版本：0.1</p>"
         "<p>功能说明：</p>"
         "<ul>"
-        "<li>选择图片：加载要绘制的图片</li>"
-        "<li>解析图片：自动将图片转换为线条画</li>"
-        "<li>框选画布：鼠标框选游戏画布，回车确认</li>"
-        "<li>开始绘画：自动在画布上绘制</li>"
-        "<li>+号：增加绘画速度</li>"
-        "<li>-号：减少绘画速度</li>"
-        "<li>ESC：终止绘画</li>"
-        "</ul>");
+        "<li><b>选择图片</b>：加载要绘制的图片</li>"
+        "<li><b>选择画板</b>：在屏幕上框选绘画区域</li>"
+        "<li><b>开始绘画</b>：在选定区域自动绘制图片</li>"
+        "<li><b>快捷键</b>：ESC停止，+加速，-减速</li>"
+        "</ul>"
+        "<p>提示：绘画前请确保目标窗口可见且已准备好。</p>");
 }
 
 void MainWindow::updateStatus(const QString &message)
@@ -99,18 +102,22 @@ void MainWindow::createActions()
 {
     selectImageAction = new QAction("选择图片", this);
     selectImageAction->setShortcut(QKeySequence::Open);
+    selectImageAction->setStatusTip("选择要绘制的图片");
     connect(selectImageAction, &QAction::triggered, this, &MainWindow::selectImage);
     
-    selectCanvasAction = new QAction("框选画布", this);
+    selectCanvasAction = new QAction("选择画板", this);
     selectCanvasAction->setShortcut(QKeySequence("C"));
+    selectCanvasAction->setStatusTip("在屏幕上选择绘画区域");
     connect(selectCanvasAction, &QAction::triggered, this, &MainWindow::selectCanvas);
     
     startDrawAction = new QAction("开始绘画", this);
     startDrawAction->setShortcut(QKeySequence("S"));
+    startDrawAction->setStatusTip("开始自动绘画");
     connect(startDrawAction, &QAction::triggered, this, &MainWindow::startDrawing);
     
     stopDrawAction = new QAction("停止绘画", this);
     stopDrawAction->setShortcut(QKeySequence("X"));
+    stopDrawAction->setStatusTip("停止绘画");
     connect(stopDrawAction, &QAction::triggered, this, &MainWindow::stopDrawing);
     
     aboutAction = new QAction("关于", this);
@@ -122,7 +129,7 @@ void MainWindow::createMenus()
     QMenu *fileMenu = menuBar()->addMenu("文件(&F)");
     fileMenu->addAction(selectImageAction);
     
-    QMenu *editMenu = menuBar()->addMenu("编辑(&E)");
+    QMenu *editMenu = menuBar()->addMenu("操作(&O)");
     editMenu->addAction(selectCanvasAction);
     editMenu->addSeparator();
     editMenu->addAction(startDrawAction);
