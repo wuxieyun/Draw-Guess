@@ -12,6 +12,7 @@
 #include <QThread>
 #include <QTimer>
 #include <QImageReader>
+#include <QDialog>
 
 #ifdef _WIN32
 #include <windows.h>
@@ -78,28 +79,35 @@ void ImageCanvas::loadImage(const QString &path)
 
 void ImageCanvas::startScreenSelection()
 {
-    ScreenSelector *selector = new ScreenSelector(this);
-    connect(selector, &ScreenSelector::selectionConfirmed, this, &ImageCanvas::onScreenSelectionConfirmed);
-    connect(selector, &ScreenSelector::selectionCancelled, this, &ImageCanvas::onScreenSelectionCancelled);
-    selector->show();
+    ScreenSelector selector(this);
     emit statusUpdated("请在屏幕上选择绘画区域...");
+    
+    int result = selector.exec();
+    if (result == QDialog::Accepted) {
+        QRect selected = selector.getSelectedRect();
+        if (selected.isValid()) {
+            selectedCanvas = selected;
+            emit canvasConfirmed(selectedCanvas);
+            emit statusUpdated(QString("已选择画布区域: (%1,%2) - %3x%4")
+                .arg(selectedCanvas.x())
+                .arg(selectedCanvas.y())
+                .arg(selectedCanvas.width())
+                .arg(selectedCanvas.height()));
+            update();
+        }
+    } else {
+        emit statusUpdated("已取消画布选择");
+    }
 }
 
-void ImageCanvas::onScreenSelectionConfirmed(const QRect &rect)
+void ImageCanvas::onScreenSelectionConfirmed(const QRect &)
 {
-    selectedCanvas = rect;
-    emit canvasConfirmed(selectedCanvas);
-    emit statusUpdated(QString("已选择画布区域: (%1,%2) - %3x%4")
-                       .arg(selectedCanvas.x())
-                       .arg(selectedCanvas.y())
-                       .arg(selectedCanvas.width())
-                       .arg(selectedCanvas.height()));
-    update();
+    // 旧的回调保留，但不再使用
 }
 
 void ImageCanvas::onScreenSelectionCancelled()
 {
-    emit statusUpdated("已取消画布选择");
+    // 旧的回调保留，但不再使用
 }
 
 void ImageCanvas::startDrawing()

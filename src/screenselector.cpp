@@ -4,17 +4,20 @@
 #include <QKeyEvent>
 #include <QScreen>
 #include <QGuiApplication>
+#include <QApplication>
+#include <QStyle>
 #include <QDebug>
 
 ScreenSelector::ScreenSelector(QWidget *parent)
-    : QWidget(parent),
+    : QDialog(parent),
       isSelecting(false)
 {
-    setWindowFlags(Qt::FramelessWindowHint | Qt::WindowStaysOnTopHint | Qt::Dialog);
+    setWindowFlags(Qt::FramelessWindowHint | Qt::WindowStaysOnTopHint);
     setAttribute(Qt::WA_TranslucentBackground);
     setAttribute(Qt::WA_DeleteOnClose);
     setMouseTracking(true);
     setFocusPolicy(Qt::StrongFocus);
+    setModal(true);
     
     // 全屏显示
     QScreen *screen = QGuiApplication::primaryScreen();
@@ -22,17 +25,53 @@ ScreenSelector::ScreenSelector(QWidget *parent)
         setGeometry(screen->availableGeometry());
     }
     
-    qDebug() << "ScreenSelector 构造函数完成，准备显示";
+    // 创建按钮容器
+    buttonWidget = new QWidget(this);
+    buttonWidget->setStyleSheet("background-color: rgba(255, 255, 255, 200); border-radius: 10px; padding: 10px;");
+    
+    QVBoxLayout *mainLayout = new QVBoxLayout(buttonWidget);
+    
+    // 提示标签
+    hintLabel = new QLabel("拖动鼠标选择区域，然后点击确认或按 Enter");
+    hintLabel->setStyleSheet("font-size: 14px; font-weight: bold; color: #333; padding: 5px;");
+    mainLayout->addWidget(hintLabel);
+    
+    // 按钮布局
+    QHBoxLayout *buttonLayout = new QHBoxLayout();
+    
+    confirmButton = new QPushButton("确认 (Enter)");
+    confirmButton->setStyleSheet(
+        "QPushButton { background-color: #4CAF50; color: white; border: none; padding: 10px 20px; font-size: 14px; border-radius: 5px; }"
+        "QPushButton:hover { background-color: #45a049; }"
+    );
+    
+    cancelButton = new QPushButton("取消 (ESC)");
+    cancelButton->setStyleSheet(
+        "QPushButton { background-color: #f44336; color: white; border: none; padding: 10px 20px; font-size: 14px; border-radius: 5px; }"
+        "QPushButton:hover { background-color: #d32f2f; }"
+    );
+    
+    buttonLayout->addWidget(confirmButton);
+    buttonLayout->addWidget(cancelButton);
+    mainLayout->addLayout(buttonLayout);
+    
+    // 将按钮容器放在屏幕底部中央
+    buttonWidget->move(width() / 2 - buttonWidget->sizeHint().width() / 2, height() - 100);
+    
+    // 连接信号
+    connect(confirmButton, &QPushButton::clicked, this, &ScreenSelector::onConfirmClicked);
+    connect(cancelButton, &QPushButton::clicked, this, &ScreenSelector::onCancelClicked);
+    
+    qDebug() << "ScreenSelector 构造完成";
 }
 
 void ScreenSelector::showEvent(QShowEvent *event)
 {
-    QWidget::showEvent(event);
-    qDebug() << "ScreenSelector 显示，激活并获取焦点";
+    QDialog::showEvent(event);
+    qDebug() << "ScreenSelector 显示";
     activateWindow();
     raise();
     setFocus();
-    qDebug() << "当前焦点:" << hasFocus();
 }
 
 void ScreenSelector::paintEvent(QPaintEvent *event)
@@ -53,35 +92,29 @@ void ScreenSelector::paintEvent(QPaintEvent *event)
         painter.setCompositionMode(QPainter::CompositionMode_SourceOver);
         
         // 画红色边框
-        QPen pen(Qt::red, 2, Qt::SolidLine);
+        QPen pen(Qt::red, 3, Qt::SolidLine);
         painter.setPen(pen);
         painter.drawRect(selectRect);
         
         // 显示尺寸信息
         painter.setPen(Qt::white);
         QFont font;
-        font.setPointSize(12);
+        font.setPointSize(14);
         font.setBold(true);
         painter.setFont(font);
         
         QString infoText = QString("%1 x %2").arg(selectRect.width()).arg(selectRect.height());
         QRect textRect = selectRect.adjusted(5, 5, 0, 0);
         painter.drawText(textRect, Qt::AlignLeft | Qt::AlignTop, infoText);
-        
-        // 提示双击确认提示
-        painter.setPen(Qt::yellow);
-        QString confirmText = "按 Enter 确认选择，按 ESC 取消，或双击";
-        QRect hintRect = selectRect.adjusted(0, -30, 0, 0);
-        painter.drawText(selectRect.center(), confirmText);
     } else {
         // 显示提示信息
         painter.setPen(Qt::white);
         QFont font;
-        font.setPointSize(16);
+        font.setPointSize(18);
         font.setBold(true);
         painter.setFont(font);
         
-        QString hintText = "拖动鼠标选择屏幕区域作为绘画画板\n按ESC取消，按Enter确认，或直接双击确认";
+        QString hintText = "请用鼠标拖动选择绘画区域\n选择完成后点击确认按钮或按 Enter 键";
         QRect textRect = rect().adjusted(0, 50, 0, 0);
         painter.drawText(textRect, Qt::AlignTop | Qt::AlignHCenter, hintText);
     }
@@ -89,7 +122,7 @@ void ScreenSelector::paintEvent(QPaintEvent *event)
 
 void ScreenSelector::mousePressEvent(QMouseEvent *event)
 {
-    qDebug() << "mousePressEvent";
+    qDebug() << "mousePressEvent at:" << event->pos();
     if (event->button() == Qt::LeftButton) {
         selectionStart = event->pos();
         selectionEnd = event->pos();
@@ -108,51 +141,51 @@ void ScreenSelector::mouseMoveEvent(QMouseEvent *event)
 
 void ScreenSelector::mouseReleaseEvent(QMouseEvent *event)
 {
-    qDebug() << "mouseReleaseEvent";
+    qDebug() << "mouseReleaseEvent at:" << event->pos();
     if (event->button() == Qt::LeftButton && isSelecting) {
         selectionEnd = event->pos();
         isSelecting = false;
         update();
+        
+        if (!selectionStart.isNull() && !selectionEnd.isNull()) {
+            hintLabel->setText("选择完成！点击确认或按 Enter");
+        }
     }
-}
-
-void ScreenSelector::mouseDoubleClickEvent(QMouseEvent *event)
-{
-    qDebug() << "mouseDoubleClickEvent";
-    Q_UNUSED(event);
-    confirmSelection();
 }
 
 void ScreenSelector::keyPressEvent(QKeyEvent *event)
 {
-    qDebug() << "keyPressEvent, key:" << event->key() << "Qt::Key_Return:" << (event->key() == Qt::Key_Return) << "Qt::Key_Enter:" << (event->key() == Qt::Key_Enter);
+    qDebug() << "keyPressEvent, key:" << event->key();
     
     if (event->key() == Qt::Key_Escape) {
         qDebug() << "ESC pressed, cancelling";
-        emit selectionCancelled();
-        close();
+        onCancelClicked();
     } else if (event->key() == Qt::Key_Return || event->key() == Qt::Key_Enter) {
-        qDebug() << "Enter/Return pressed";
-        confirmSelection();
+        qDebug() << "Enter/Return pressed, confirming";
+        onConfirmClicked();
     }
 }
 
-void ScreenSelector::confirmSelection()
+void ScreenSelector::onConfirmClicked()
 {
-    qDebug() << "confirmSelection called, selectionStart:" << selectionStart << "selectionEnd:" << selectionEnd;
-    
+    qDebug() << "Confirm clicked";
     if (!selectionStart.isNull() && !selectionEnd.isNull()) {
         selectedRect = QRect(selectionStart, selectionEnd).normalized();
-        qDebug() << "selectedRect:" << selectedRect << "isValid:" << selectedRect.isValid();
         
-        if (selectedRect.isValid() && selectedRect.width() > 10 && selectedRect.height() > 10) {
-            qDebug() << "Emitting selectionConfirmed";
-            emit selectionConfirmed(selectedRect);
-            close();
+        if (selectedRect.isValid() && selectedRect.width() > 20 && selectedRect.height() > 20) {
+            qDebug() << "Selection confirmed:" << selectedRect;
+            accept(); // 接受对话框
         } else {
-            qDebug() << "Selection too small or invalid";
+            hintLabel->setText("选择区域太小，请重新选择更大的区域！");
         }
     } else {
-        qDebug() << "No selection made";
+        hintLabel->setText("请先选择一个区域！");
     }
+}
+
+void ScreenSelector::onCancelClicked()
+{
+    qDebug() << "Cancel clicked";
+    selectedRect = QRect(); // 清空选择
+    reject(); // 拒绝对话框
 }
